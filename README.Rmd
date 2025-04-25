@@ -148,10 +148,22 @@ summary(wine)
 
 ```{r}
 library(ggplot2)
+# Ensure quality is treated as an ordered factor
+wine$quality <- factor(wine$quality, ordered = TRUE, levels = sort(unique(wine$quality)))
+
+# Bar plot with visible x-axis labels
 ggplot(wine, aes(x = quality, fill = type)) +
   geom_bar(position = "dodge") +
-  theme_minimal() +
-  labs(title = "Wine Quality Distribution by Type", x = "Quality", y = "Count")
+  theme_minimal(base_size = 14) +
+  labs(title = "Distribution of Wine Quality Ratings", x = "Wine Quality", y = "Count") +
+  scale_x_discrete(drop = FALSE) +  # prevent dropping levels
+  theme(
+    axis.text.x = element_text(angle = 0, vjust = 0.5),
+    axis.title.x = element_text(margin = margin(t = 10))
+  ) +
+  scale_fill_manual(values = c("red" = "tomato", "white" = "lightgoldenrod"))
+
+
 ```
 
 **Observation:** White wines dominate higher quality ratings, while red wines are more concentrated in mid-range ratings.
@@ -162,11 +174,16 @@ ggplot(wine, aes(x = quality, fill = type)) +
 library(ggplot2)
 library(dplyr)
 # Alcohol vs. Quality
-wine %>%
-  ggplot(aes(x = quality, y = alcohol, fill = type)) +
+# Convert quality to an ordered factor
+wine$quality <- factor(wine$quality, ordered = TRUE)
+
+# Boxplot of Alcohol by Quality and Type
+ggplot(wine, aes(x = quality, y = alcohol, fill = type)) +
   geom_boxplot() +
   theme_minimal() +
-  labs(title = "Alcohol Content vs. Wine Quality", x = "Quality", y = "Alcohol")
+  labs(title = "Alcohol Content vs. Wine Quality", x = "Wine Quality", y = "Alcohol (%)") +
+  scale_fill_manual(values = c("red" = "tomato", "white" = "lightgoldenrod"))
+
 ```
 
 **Question:** Does higher alcohol content relate to better quality?
@@ -191,9 +208,15 @@ wine %>%
 ```{r}
 library(corrplot)
 
-corr_matrix <- cor(wine %>% select(-type))
+# Select only numeric columns for correlation matrix
+numeric_features <- wine %>%
+  select(where(is.numeric))
 
-corrplot(corr_matrix, method = "color", type = "upper", tl.cex = 0.7, tl.col = "black")
+# Compute correlation matrix
+corr_matrix <- cor(numeric_features)
+
+# Plot correlation heatmap
+corrplot(corr_matrix, method = "color", type = "upper", tl.cex = 0.7, tl.col = "black", addCoef.col = NULL)
 
 ```
 
@@ -227,7 +250,7 @@ kruskal_result
 
 ```
 
-Shapiro - Wilk test - tests whther the data is normally distributed. Since our p\<0.05 and we have ordinal data type, we need to perform some non-parametric tests like Spearman Rank's correlation and Kruskal-Wallis test to compare median across multiple groups. Since our p-value \< 0.05, we can reject our null hypothesis. Therefore we have enough evidence to support the hypothesis that alcohol content differs across quality scores.
+Shapiro - Wilk test - tests whther the data is normally distributed. Since our p-value is less than 0.05 and we have ordinal data type, we need to perform some non-parametric tests like Spearman Rank's correlation and Kruskal-Wallis test to compare median across multiple groups. Since our p-value is less than 0.05, we can reject our null hypothesis. Therefore we have enough evidence to support the hypothesis that alcohol content differs across quality scores.
 
 ### Hypothesis 2
 
@@ -237,12 +260,13 @@ Shapiro - Wilk test - tests whther the data is normally distributed. Since our p
 **Test:** Correlation Test
 
 ```{r}
-cor.test(wine$volatile_acidity, wine$quality, method = "spearman")
+# Spearman correlation test between volatile_acidity and wine quality
+cor.test(wine$volatile_acidity, as.numeric(as.character(wine$quality)), method = "spearman")
 
 
 ```
 
-Since our p-vale \< 0.05, we can reject our null hypothesis. Therefore, we have enough evidence to support our hypothesis that volatile acidity negatively affects wine quality.
+Since our p-value is less than 0.05, we can reject our null hypothesis. Therefore, we have enough evidence to support our hypothesis that volatile acidity negatively affects wine quality.
 
 # Final Business Insights
 

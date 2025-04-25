@@ -250,10 +250,20 @@ summary(wine)
 
 ``` r
 library(ggplot2)
+# Ensure quality is treated as an ordered factor
+wine$quality <- factor(wine$quality, ordered = TRUE, levels = sort(unique(wine$quality)))
+
+# Bar plot with visible x-axis labels
 ggplot(wine, aes(x = quality, fill = type)) +
   geom_bar(position = "dodge") +
-  theme_minimal() +
-  labs(title = "Wine Quality Distribution by Type", x = "Quality", y = "Count")
+  theme_minimal(base_size = 14) +
+  labs(title = "Distribution of Wine Quality Ratings", x = "Wine Quality", y = "Count") +
+  scale_x_discrete(drop = FALSE) +  # prevent dropping levels
+  theme(
+    axis.text.x = element_text(angle = 0, vjust = 0.5),
+    axis.title.x = element_text(margin = margin(t = 10))
+  ) +
+  scale_fill_manual(values = c("red" = "tomato", "white" = "lightgoldenrod"))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
@@ -280,11 +290,15 @@ library(dplyr)
 
 ``` r
 # Alcohol vs. Quality
-wine %>%
-  ggplot(aes(x = quality, y = alcohol, fill = type)) +
+# Convert quality to an ordered factor
+wine$quality <- factor(wine$quality, ordered = TRUE)
+
+# Boxplot of Alcohol by Quality and Type
+ggplot(wine, aes(x = quality, y = alcohol, fill = type)) +
   geom_boxplot() +
   theme_minimal() +
-  labs(title = "Alcohol Content vs. Wine Quality", x = "Quality", y = "Alcohol")
+  labs(title = "Alcohol Content vs. Wine Quality", x = "Wine Quality", y = "Alcohol (%)") +
+  scale_fill_manual(values = c("red" = "tomato", "white" = "lightgoldenrod"))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
@@ -321,9 +335,15 @@ library(corrplot)
     ## corrplot 0.95 loaded
 
 ``` r
-corr_matrix <- cor(wine %>% select(-type))
+# Select only numeric columns for correlation matrix
+numeric_features <- wine %>%
+  select(where(is.numeric))
 
-corrplot(corr_matrix, method = "color", type = "upper", tl.cex = 0.7, tl.col = "black")
+# Compute correlation matrix
+corr_matrix <- cor(numeric_features)
+
+# Plot correlation heatmap
+corrplot(corr_matrix, method = "color", type = "upper", tl.cex = 0.7, tl.col = "black", addCoef.col = NULL)
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
@@ -363,14 +383,14 @@ wine %>%
 
     ## # A tibble: 7 × 2
     ##   quality shapiro_p
-    ##     <dbl>     <dbl>
-    ## 1       3  8.99e- 1
-    ## 2       4  1.15e- 5
-    ## 3       5  1.68e-33
-    ## 4       6  4.52e-24
-    ## 5       7  2.47e-10
-    ## 6       8  1.28e- 8
-    ## 7       9  2.01e- 2
+    ##   <ord>       <dbl>
+    ## 1 3        8.99e- 1
+    ## 2 4        1.15e- 5
+    ## 3 5        1.68e-33
+    ## 4 6        4.52e-24
+    ## 5 7        2.47e-10
+    ## 6 8        1.28e- 8
+    ## 7 9        2.01e- 2
 
 ``` r
 # Check homogeneity of variances
@@ -396,7 +416,7 @@ kruskal_result
     ## data:  alcohol by as.factor(quality)
     ## Kruskal-Wallis chi-squared = 1397.3, df = 6, p-value < 2.2e-16
 
-Shapiro - Wilk test - tests whther the data is normally distributed. Since our p\<0.05 and we have ordinal data type, we need to perform some non-parametric tests like Spearman Rank’s correlation and Kruskal-Wallis test to compare median across multiple groups. Since our p-value \< 0.05, we can reject our null hypothesis. Therefore we have enough evidence to support the hypothesis that alcohol content differs across quality scores.
+Shapiro - Wilk test - tests whther the data is normally distributed. Since our p-value is less than 0.05 and we have ordinal data type, we need to perform some non-parametric tests like Spearman Rank’s correlation and Kruskal-Wallis test to compare median across multiple groups. Since our p-value is less than 0.05, we can reject our null hypothesis. Therefore we have enough evidence to support the hypothesis that alcohol content differs across quality scores.
 
 ### Hypothesis 2
 
@@ -406,23 +426,25 @@ Shapiro - Wilk test - tests whther the data is normally distributed. Since our p
 **Test:** Correlation Test
 
 ``` r
-cor.test(wine$volatile_acidity, wine$quality, method = "spearman")
+# Spearman correlation test between volatile_acidity and wine quality
+cor.test(wine$volatile_acidity, as.numeric(as.character(wine$quality)), method = "spearman")
 ```
 
-    ## Warning in cor.test.default(wine$volatile_acidity, wine$quality, method =
-    ## "spearman"): Cannot compute exact p-value with ties
+    ## Warning in cor.test.default(wine$volatile_acidity,
+    ## as.numeric(as.character(wine$quality)), : Cannot compute exact p-value with
+    ## ties
 
     ## 
     ##  Spearman's rank correlation rho
     ## 
-    ## data:  wine$volatile_acidity and wine$quality
+    ## data:  wine$volatile_acidity and as.numeric(as.character(wine$quality))
     ## S = 5.7491e+10, p-value < 2.2e-16
     ## alternative hypothesis: true rho is not equal to 0
     ## sample estimates:
     ##        rho 
     ## -0.2578059
 
-Since our p-vale \< 0.05, we can reject our null hypothesis. Therefore, we have enough evidence to support our hypothesis that volatile acidity negatively affects wine quality.
+Since our p-value is less than 0.05, we can reject our null hypothesis. Therefore, we have enough evidence to support our hypothesis that volatile acidity negatively affects wine quality.
 
 # Final Business Insights
 
