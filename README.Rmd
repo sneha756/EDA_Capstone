@@ -1,0 +1,254 @@
+---
+title: "README"
+output: 
+  github_document: 
+    pandoc_args: ["--wrap=none"]
+knitr:
+  opts_chunk:
+    dev: "png"
+    fig.path: "images/"
+    fig.width: 6
+    fig.height: 4
+    echo: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Business Understanding
+
+The primary goal of this project is to understand the factors that influence wine quality. Wine quality is typically rated by experts on a scale (e.g., from 0 to 10), and it is influenced by a range of physicochemical properties such as acidity, sugar content, alcohol percentage, and more.
+
+*Research Question:* What physicochemical characteristics are most strongly associated with higher wine quality?
+
+*Findings (based on prior research and dataset characteristics):*
+
+1.  Alcohol content is often one of the strongest predictors of wine quality — higher alcohol levels are typically associated with better taste and quality.
+
+2.  Volatile acidity (which refers to the amount of acetic acid in wine) tends to negatively affect wine quality; higher volatile acidity usually means a lower quality score.
+
+3.  Sulphates and citric acid contents tend to have a positive impact, as they are linked to better preservation and flavor enhancement.
+
+4.  Residual sugar and density are less consistently related to quality; excessive sugar or high density could suggest lower quality.
+
+5.  pH levels have a minor influence, but extreme pH values might indicate problems with the wine's balance.
+
+6.  Fixed acidity and total acidity contribute to the freshness and stability of wine but are usually secondary factors.
+
+This information was taken from the paper titled 'Modeling Wine Preferences by Data Mining from Physicochemical Properties' by Cortez, P., Cerdeira, A., Almeida, F., Matos, T., & Reis, J. and it was published in the Decision Support Systems in 2009.
+
+# Business Implication:
+
+Understanding these factors is essential for winemakers aiming to improve product quality, for marketers who want to better classify wines, and for consumers who seek to choose high-quality wines based on measurable features. A reliable model that predicts wine quality could also help producers adjust their processes or optimize harvest and fermentation decisions.
+
+# Data Understanding
+
+The first step is to organize the 2 csv files we have (one for red wine and one for white wine) properly. Then we combine the two files into one so it makes it easier for us to perform analyses. The code chunks below do that for us.
+
+```{r}
+
+library(readr)
+
+# Read with correct delimiter
+data <- read_delim("winequality-red.csv", delim = ";")  # Change delim if needed
+
+# View the first few rows
+head(data)
+```
+
+```{r}
+
+library(readr)
+
+# Read with correct delimiter
+data1 <- read_delim("winequality-white.csv", delim = ";")  # Change delim if needed
+
+# View the first few rows
+head(data1)
+```
+
+Combine both datasets
+
+```{r}
+# Add a new column to identify wine type
+data$type <- "red"
+data1$type <- "white"
+
+wine <- rbind(data, data1)
+
+head(wine)
+```
+
+## Dataset Information
+
+```{r}
+#Number of samples
+nrow(wine)
+
+#Number of features
+ncol(wine) - 1 #excluding type column
+```
+
+## Feature Descriptions
+
+| Feature              | Description                     | Data Type |
+|:---------------------|:--------------------------------|:----------|
+| fixed acidity        | Tartaric acid content           | Ratio     |
+| volatile acidity     | Acetic acid content             | Ratio     |
+| citric acid          | Citric acid content             | Ratio     |
+| residual sugar       | Sugar after fermentation        | Ratio     |
+| chlorides            | Salt content                    | Ratio     |
+| free sulfur dioxide  | SO2 preventing microbial growth | Ratio     |
+| total sulfur dioxide | Sum of free and bound SO2       | Ratio     |
+| density              | Wine density                    | Ratio     |
+| pH                   | Acidity level                   | Interval  |
+| sulphates            | Sulfate salts                   | Ratio     |
+| alcohol              | Alcohol percentage              | Ratio     |
+| quality              | Quality score (0-10)            | Ordinal   |
+| type                 | Wine type (red or white)        | Nominal   |
+
+# Data Preparation
+
+The csv files were loaded as shown in the code chunks above Then we check for missing values because if there are any missing values, we need to drop them as they may affect out analyses. We also have to change some of our column names and replace the whitespaces with '\_' as we will be unable to use those columns for graphing and analyses.
+
+We do that by using this code below
+
+```{r}
+# Check for missing values
+colSums(is.na(wine))
+
+#Changing column names
+colnames(wine)[1] <- "fixed_acidity"
+colnames(wine)[2] <- "volatile_acidity"
+colnames(wine)[3] <- "citric_acid"
+colnames(wine)[4] <- "residual_sugar"
+colnames(wine)[6] <- "free_sulfur_dioxide"
+colnames(wine)[7] <- "total_sulfur_dioxide"
+
+
+head(wine)
+
+```
+
+Since there are no missing values, we do not need to make any changes to our data
+
+Next we generate some summary statistics to get a better idea of our data using this code below
+
+```{r}
+# Summary statistics
+summary(wine)
+```
+
+# Modeling and Evaluating
+
+## Exploratory Data Analysis (EDA)
+
+### Wine Quality Distribution
+
+```{r}
+library(ggplot2)
+ggplot(wine, aes(x = quality, fill = type)) +
+  geom_bar(position = "dodge") +
+  theme_minimal() +
+  labs(title = "Wine Quality Distribution by Type", x = "Quality", y = "Count")
+```
+
+**Observation:** White wines dominate higher quality ratings, while red wines are more concentrated in mid-range ratings.
+
+### Feature Distributions
+
+```{r}
+library(ggplot2)
+library(dplyr)
+# Alcohol vs. Quality
+wine %>%
+  ggplot(aes(x = quality, y = alcohol, fill = type)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Alcohol Content vs. Wine Quality", x = "Quality", y = "Alcohol")
+```
+
+**Question:** Does higher alcohol content relate to better quality?
+
+### Simple Visualization: Density Plots
+
+```{r}
+ggplot(wine, aes(x = alcohol, fill = type)) +
+  geom_density(alpha = 0.5) +
+  theme_minimal() +
+  labs(title = "Density Plot of Alcohol Content", x = "Alcohol", y = "Density")
+
+wine %>%
+  ggplot(aes(x = volatile_acidity, fill = type)) +
+  geom_density(alpha = 0.5) +
+  theme_minimal() +
+  labs(title = "Density Plot of Volatile Acidity", x = "Volatile Acidity", y = "Density")
+```
+
+### Correlation Heatmap
+
+```{r}
+library(corrplot)
+
+corr_matrix <- cor(wine %>% select(-type))
+
+corrplot(corr_matrix, method = "color", type = "upper", tl.cex = 0.7, tl.col = "black")
+
+```
+
+**Observation:** Alcohol is positively correlated with quality, while volatile acidity and density are negatively correlated.
+
+## Hypothesis Testing
+
+### Hypothesis 1
+
+-   **H0:** Alcohol content does not differ across quality scores.
+-   **HA:** Alcohol content differs across quality scores.
+
+**Test:** ANOVA
+
+**Assumptions:** - Independence: Data collected independently. - Normality: Each group's alcohol is roughly normally distributed. - Homogeneity of variance: Variance of alcohol content similar across groups.
+
+```{r}
+library(car)
+
+# Check normality
+wine %>%
+  group_by(quality) %>%
+  summarise(shapiro_p = shapiro.test(alcohol)$p.value)
+
+# Check homogeneity of variances
+leveneTest(alcohol ~ as.factor(quality), data = wine)
+
+# Perform Kruskal-Wallis Test 
+kruskal_result <- kruskal.test(alcohol ~ as.factor(quality), data = wine)
+kruskal_result
+
+```
+
+Shapiro - Wilk test - tests whther the data is normally distributed. Since our p\<0.05 and we have ordinal data type, we need to perform some non-parametric tests like Spearman Rank's correlation and Kruskal-Wallis test to compare median across multiple groups. Since our p-value \< 0.05, we can reject our null hypothesis. Therefore we have enough evidence to support the hypothesis that alcohol content differs across quality scores.
+
+### Hypothesis 2
+
+-   **H0:** Volatile acidity is independent of wine quality.
+-   **HA:** Volatile acidity negatively affects wine quality.
+
+**Test:** Correlation Test
+
+```{r}
+cor.test(wine$volatile_acidity, wine$quality, method = "spearman")
+
+
+```
+
+Since our p-vale \< 0.05, we can reject our null hypothesis. Therefore, we have enough evidence to support our hypothesis that volatile acidity negatively affects wine quality.
+
+# Final Business Insights
+
+-   **Alcohol content** has a statistically significant positive relationship with wine quality.
+-   **Volatile acidity** has a statistically significant negative relationship with wine quality.
+-   **Sulphates** and **citric acid** also show positive but smaller associations.
+-   EDA indicates that white wines slightly outperform red wines in quality ratings on average.
+
+**Recommendations:** - Focus on optimizing alcohol levels to improve perceived wine quality. - Reduce volatile acidity during fermentation to avoid lower quality ratings. - Minor adjustments in sulphates and citric acid could yield better-tasting wines.
